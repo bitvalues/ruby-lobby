@@ -1,0 +1,97 @@
+package auth
+
+import (
+	"errors"
+	"fmt"
+	"net"
+	"strings"
+
+	"github.com/bitvalues/ruby-lobby/src/config"
+	"github.com/bitvalues/ruby-lobby/src/sessions"
+	"github.com/bitvalues/ruby-lobby/src/tools"
+	"github.com/sirupsen/logrus"
+)
+
+type AuthServer struct {
+	cfg    config.Config
+	sm     *sessions.SessionManager
+	log    *logrus.Entry
+	socket net.Listener
+}
+
+func NewServer(cfg config.Config, sm *sessions.SessionManager, log *logrus.Logger) AuthServer {
+	socket, err := net.Listen("tcp4", fmt.Sprintf(":%d", cfg.AuthServerPort))
+	if err != nil {
+		log.WithError(err).Fatal("Could not create auth server listener")
+	}
+
+	return AuthServer{
+		cfg: cfg,
+		sm:  sm,
+		log: log.WithFields(logrus.Fields{
+			"server": "auth",
+			"port":   cfg.AuthServerPort,
+		}),
+		socket: socket,
+	}
+}
+
+func (s *AuthServer) Startup() {
+	s.log.Info("Starting up")
+
+	for {
+		// attempt to accept a connection
+		conn, err := s.socket.Accept()
+		if err != nil {
+			// prevent the closed network connection spam
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				return
+			}
+
+			// otherwise debug what the issue is
+			s.log.WithError(err).Debug("Cannot accept new connection")
+			continue
+		}
+
+		// attempt to get a session object from the new connection
+		session, err := s.getSessionFromConnection(conn)
+		if err != nil {
+			s.log.WithError(err).Debug("Could not get session from connection")
+			conn.Close()
+			continue
+		}
+
+		// handle this session on another go routine
+		go s.handleSession(session)
+	}
+}
+
+func (s *AuthServer) Shutdown() {
+	s.log.Info("Shutting down")
+	s.socket.Close()
+}
+
+func (s *AuthServer) getSessionFromConnection(conn net.Conn) (sessions.Session, error) {
+	// extract the ip from the remote address
+	ip, _ := tools.ParseRemoteAddress(conn.RemoteAddr().String())
+
+	// check if the ip address is banned
+	if s.ipAddressIsBanned(ip) {
+		return sessions.Session{}, errors.New("ip address is banned")
+	}
+
+	// create a new session object
+	session := sessions.CreateNewSession(ip)
+	session.SetAuthSocket(conn)
+
+	// add the new session to the session manager
+	s.sm.AddSession(session)
+
+	// finally, return the new session
+	return session, nil
+}
+
+func (s *AuthServer) ipAddressIsBanned(ip string) bool {
+	// TODO: actually implement logic for this
+	return false
+}
