@@ -76,7 +76,7 @@ func (s *AuthServer) getSessionFromConnection(conn net.Conn) (sessions.Session, 
 	ip, _ := tools.ParseRemoteAddress(conn.RemoteAddr().String())
 
 	// check if the ip address is banned
-	if s.ipAddressIsBanned(ip) {
+	if tools.IPAddressIsBanned(ip) {
 		return sessions.Session{}, errors.New("ip address is banned")
 	}
 
@@ -89,9 +89,4 @@ func (s *AuthServer) getSessionFromConnection(conn net.Conn) (sessions.Session, 
 
 	// finally, return the new session
 	return session, nil
-}
-
-func (s *AuthServer) ipAddressIsBanned(ip string) bool {
-	// TODO: actually implement logic for this
-	return false
 }

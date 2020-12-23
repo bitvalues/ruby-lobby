@@ -11,6 +11,7 @@ type Session struct {
 	id           uuid.UUID
 	ip           string
 	lastActivity time.Time
+	accountID    uint32
 
 	authSocket net.Conn
 	dataSocket net.Conn
@@ -61,4 +62,12 @@ func (s *Session) SetViewSocket(socket net.Conn) {
 
 func (s *Session) GetViewSocket() net.Conn {
 	return s.viewSocket
+}
+
+func (s *Session) SetAccountID(accountID uint32) {
+	s.accountID = accountID
+}
+
+func (s *Session) GetAccountID() uint32 {
+	return s.accountID
 }

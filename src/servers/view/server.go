@@ -51,15 +51,11 @@ func (s *ViewServer) Startup() {
 			continue
 		}
 
-		s.getSessionFromConnection(conn)
+		go s.handleConnection(conn)
 	}
 }
 
 func (s *ViewServer) Shutdown() {
 	s.log.Info("Shutting down")
 	s.socket.Close()
-}
-
-func (s *ViewServer) getSessionFromConnection(conn net.Conn) sessions.Session {
-	return sessions.Session{}
 }
